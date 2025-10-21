@@ -171,3 +171,4 @@ func _ready():
 ## Note
 
 This plugin looks for the EOS plugin at `res://addons/epic-online-services-godot/`. If the EOS plugin is not found, the export will fail with an error message.
+Plugin can be found here https://github.com/3ddelano/epic-online-services-godot
