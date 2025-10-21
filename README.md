@@ -1,4 +1,4 @@
-# EOS Android Export Helper
+# EOSG Android Export Helper
 
 Standalone plugin that automatically configures your Android build template for Epic Online Services.
 
