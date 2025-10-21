@@ -1,5 +1,7 @@
 # EOSG Android Export Helper
 
+![EOSG Export](EOSGExport.png)
+
 Standalone plugin that automatically configures your Android build template for Epic Online Services.
 
 ## What's Included
@@ -72,6 +74,7 @@ Project -> Export -> Android
 ```
 
 The plugin will automatically:
+
 - ✅ Configure all Android build files for EOS (build.gradle, config.gradle, GodotApp.java)
 - ✅ Include your `.env` file in the APK
 - ✅ Inject the EOS login protocol scheme using your CLIENT_ID
