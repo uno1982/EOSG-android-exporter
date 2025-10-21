@@ -72,6 +72,7 @@ Project -> Export -> Android
 ```
 
 The plugin will automatically:
+
 - ✅ Configure all Android build files for EOS (build.gradle, config.gradle, GodotApp.java)
 - ✅ Include your `.env` file in the APK
 - ✅ Inject the EOS login protocol scheme using your CLIENT_ID
@@ -80,11 +81,7 @@ No manual configuration needed!
 
 ### Client ID Priority
 
-The plugin checks for the Client ID in this order:
-
-1. Project Settings (`eos_android/client_id`)
-2. EOSCredentials class (if you have it in your project)
-3. `.env` file (`CLIENT_ID=...`)
+The plugin gets the Client ID from your `.env` file (`CLIENT_ID=...`). The EOSCredentials class automatically loads this value when accessed.
 
 ## Advanced Usage
 
@@ -165,7 +162,6 @@ func _ready():
 
 ## Settings
 
-- `eos_android/client_id` - Your EOS Client ID from Epic Developer Portal
 - `eos_android/enable_auto_config` - Enable/disable automatic configuration
 
 ## Note
