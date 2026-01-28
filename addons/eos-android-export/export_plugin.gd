@@ -62,6 +62,7 @@ func _export_begin(features: PackedStringArray, is_debug: bool, path: String, fl
 	_modify_build_gradle()
 	_modify_config_gradle()
 	_modify_godot_app_java()
+	_modify_android_manifest()
 	
 	print("EOS Android Export: Configuration complete")
 
@@ -157,51 +158,168 @@ func _modify_config_gradle() -> void:
 			print("config.gradle minSdk updated to 23")
 
 func _modify_godot_app_java() -> void:
-	var file_path = "res://android/build/src/com/godot/game/GodotApp.java"
+	# Try Godot 4.6 path first, then fall back to 4.5
+	var file_path_46 = "res://android/build/src/main/java/com/godot/game/GodotApp.java"
+	var file_path_45 = "res://android/build/src/com/godot/game/GodotApp.java"
+	var file_path = ""
+	
+	if FileAccess.file_exists(file_path_46):
+		file_path = file_path_46
+	elif FileAccess.file_exists(file_path_45):
+		file_path = file_path_45
+	else:
+		push_error("Failed to find GodotApp.java at either:")
+		push_error("  " + file_path_46 + " (Godot 4.6+)")
+		push_error("  " + file_path_45 + " (Godot 4.5)")
+		return
+	
 	var file = FileAccess.open(file_path, FileAccess.READ)
 	if not file:
-		push_error("Failed to open GodotApp.java")
+		push_error("Failed to open GodotApp.java at " + file_path)
 		return
 	
 	var content = file.get_as_text()
 	file.close()
 	
 	# Check if already configured
-	if content.contains("EOSSDK.init"):
+	if content.contains("EOSSDK.init") and content.contains("onNewIntent"):
 		print("GodotApp.java already configured")
 		return
 	
-	# Add EOS import
+	# Add EOS and Intent imports
 	var import_pattern = "import org.godotengine.godot.GodotActivity;"
 	var import_pos = content.find(import_pattern)
 	if import_pos != -1:
 		var import_insert_pos = content.find("\n", import_pos) + 1
-		content = content.insert(import_insert_pos, "import com.epicgames.mobile.eossdk.EOSSDK;\n")
+		var imports = """import com.epicgames.mobile.eossdk.EOSSDK;
+import android.content.Intent;
+import android.net.Uri;
+import android.util.Log;
+"""
+		content = content.insert(import_insert_pos, imports)
 	
-	# Add static block with loadLibrary
-	var class_pattern = "public class GodotApp extends GodotActivity {"
-	var class_pos = content.find(class_pattern)
-	if class_pos != -1:
-		var static_insert_pos = content.find("\n", class_pos) + 1
-		var load_library = """\tstatic {
+	# Add static block with loadLibrary if not present
+	if not content.contains("System.loadLibrary(\"EOSSDK\")"):
+		var class_pattern = "public class GodotApp extends GodotActivity {"
+		var class_pos = content.find(class_pattern)
+		if class_pos != -1:
+			var static_insert_pos = content.find("\n", class_pos) + 1
+			var load_library = """\tstatic {
 \t\tSystem.loadLibrary("EOSSDK");
 \t}
 
 """
-		content = content.insert(static_insert_pos, load_library)
+			content = content.insert(static_insert_pos, load_library)
 	
-	# Add EOSSDK.init in onCreate
-	var oncreate_pattern = "public void onCreate(Bundle savedInstanceState) {"
-	var oncreate_pos = content.find(oncreate_pattern)
-	if oncreate_pos != -1:
-		var init_insert_pos = content.find("\n", oncreate_pos) + 1
-		content = content.insert(init_insert_pos, "\t\tEOSSDK.init(getActivity());\n\n")
+	# Add EOSSDK.init in onCreate if not present
+	if not content.contains("EOSSDK.init"):
+		var oncreate_pattern = "public void onCreate(Bundle savedInstanceState) {"
+		var oncreate_pos = content.find(oncreate_pattern)
+		if oncreate_pos != -1:
+			var init_insert_pos = content.find("\n", oncreate_pos) + 1
+			content = content.insert(init_insert_pos, "\t\tEOSSDK.init(getActivity());\n\n")
+	
+	# Add onNewIntent override to handle OAuth callback
+	if not content.contains("onNewIntent"):
+		# Find the last closing brace (end of class)
+		var last_brace = content.rfind("}")
+		if last_brace != -1:
+			var on_new_intent = """
+\t@Override
+\tprotected void onNewIntent(Intent intent) {
+\t\tsuper.onNewIntent(intent);
+\t\tsetIntent(intent);
+\t\t
+\t\t// Handle EOS OAuth deep link
+\t\tUri data = intent.getData();
+\t\tif (data != null) {
+\t\t\tString scheme = data.getScheme();
+\t\t\tif (scheme != null && scheme.startsWith("eos.")) {
+\t\t\t\tLog.d("GODOT_EOS", "Received OAuth callback: " + data.toString());
+\t\t\t\t// EOS SDK will automatically handle the callback
+\t\t\t}
+\t\t}
+\t}
+"""
+			content = content.insert(last_brace, on_new_intent)
 	
 		file = FileAccess.open(file_path, FileAccess.WRITE)
 		if file:
 			file.store_string(content)
 			file.close()
 			print("GodotApp.java configured successfully")
+
+func _modify_android_manifest() -> void:
+	# Try Godot 4.6 path first, then fall back to 4.5
+	var file_path_46 = "res://android/build/src/main/AndroidManifest.xml"
+	var file_path_45 = "res://android/build/AndroidManifest.xml"
+	var file_path = ""
+	
+	if FileAccess.file_exists(file_path_46):
+		file_path = file_path_46
+	elif FileAccess.file_exists(file_path_45):
+		file_path = file_path_45
+	else:
+		push_error("Failed to find AndroidManifest.xml at either:")
+		push_error("  " + file_path_46 + " (Godot 4.6+)")
+		push_error("  " + file_path_45 + " (Godot 4.5)")
+		return
+	
+	var file = FileAccess.open(file_path, FileAccess.READ)
+	if not file:
+		push_error("Failed to open AndroidManifest.xml at " + file_path)
+		return
+	
+	var content = file.get_as_text()
+	file.close()
+	
+	var modified = false
+	
+	# Check if OAuth intent filter already configured
+	if not content.contains("EOS OAuth redirect"):
+		var client_id = _get_client_id()
+		if client_id.is_empty():
+			push_error("Cannot configure AndroidManifest without CLIENT_ID")
+			return
+		
+		# Create the OAuth redirect scheme
+		var scheme = "eos." + client_id.to_lower()
+		
+		# Find the end of the first intent-filter (the MAIN/LAUNCHER one)
+		var intent_filter_end = content.find("</intent-filter>")
+		if intent_filter_end == -1:
+			push_error("Could not find intent-filter in AndroidManifest.xml")
+			return
+		
+		# Insert the new intent-filter after the existing one
+		var insert_pos = content.find("\n", intent_filter_end) + 1
+		var oauth_intent_filter = """
+            <!-- EOS OAuth redirect intent filter -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="%s" />
+            </intent-filter>
+""" % scheme
+		
+		content = content.insert(insert_pos, oauth_intent_filter)
+		modified = true
+		print("AndroidManifest.xml configured with OAuth scheme: " + scheme)
+	
+	# Ensure launchMode is singleTask for proper deep link handling
+	if content.contains('android:launchMode="singleInstancePerTask"'):
+		content = content.replace('android:launchMode="singleInstancePerTask"', 'android:launchMode="singleTask"')
+		modified = true
+		print("AndroidManifest.xml: Changed launchMode to singleTask for deep links")
+	
+	if modified:
+		file = FileAccess.open(file_path, FileAccess.WRITE)
+		if file:
+			file.store_string(content)
+			file.close()
+	else:
+		print("AndroidManifest.xml already configured")
 
 func _get_client_id() -> String:
 	# Load client ID from .env file
