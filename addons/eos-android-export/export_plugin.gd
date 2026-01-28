@@ -243,11 +243,11 @@ import android.util.Log;
 """
 			content = content.insert(last_brace, on_new_intent)
 	
-		file = FileAccess.open(file_path, FileAccess.WRITE)
-		if file:
-			file.store_string(content)
-			file.close()
-			print("GodotApp.java configured successfully")
+	file = FileAccess.open(file_path, FileAccess.WRITE)
+	if file:
+		file.store_string(content)
+		file.close()
+		print("GodotApp.java configured successfully")
 
 func _modify_android_manifest() -> void:
 	# Try Godot 4.6 path first, then fall back to 4.5
