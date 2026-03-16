@@ -88,6 +88,9 @@ func _modify_build_gradle() -> void:
 		
 		var insert_pos = content.find("\n", deps_pos) + 1
 		var eos_deps = """
+    // Core library desugaring (required for EOS SDK 1.18+)
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+
     // EOS SDK dependencies
     implementation 'androidx.appcompat:appcompat:1.5.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
@@ -118,6 +121,15 @@ func _modify_build_gradle() -> void:
 				modified = true
 			else:
 				push_warning("EOS Client ID not found in .env file")
+	
+	# Enable core library desugaring in compileOptions (required for EOS SDK 1.18+)
+	if not content.contains("coreLibraryDesugaringEnabled"):
+		var compile_opts_pos = content.find("compileOptions {")
+		if compile_opts_pos != -1:
+			var insert_pos = content.find("\n", compile_opts_pos) + 1
+			var desugaring_line = "        coreLibraryDesugaringEnabled true\n"
+			content = content.insert(insert_pos, desugaring_line)
+			modified = true
 	
 	if modified:
 		file = FileAccess.open(file_path, FileAccess.WRITE)

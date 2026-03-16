@@ -18,6 +18,11 @@ Standalone plugin that automatically configures your Android build template for 
 - Epic Online Services Godot plugin installed at `res://addons/epic-online-services-godot/`
 - Android build template installed (Project -> Install Android Build Template)
 
+## Compatibility
+
+- **EOSG 2.2.9+** (EOS SDK 1.18+): Fully supported with automatic Java 8 desugaring
+- **EOSG 2.2.8 and earlier**: Fully supported
+
 ## Quick Start Guide
 
 ### 1. Install the Plugin
